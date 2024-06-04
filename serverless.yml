@@ -12,6 +12,10 @@ provider:
     profile: sls
     stage: dev
     httpApi:
+        cors:
+            allowedOrigins:
+                - "*"
+            allowCredentials: true
         authorizers:
             customAuthorizer:
                 type: request
