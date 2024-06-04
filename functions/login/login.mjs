@@ -27,9 +27,9 @@ export const handler = async (event) => {
             });
             return {
                 statusCode: 200,
-                headers: {
-                    "Set-Cookie": `authorization=${token}; Secure; HttpOnly; Max-Age=${24 * 60 * 60}; SameSite=None; Partitioned`,
-                },
+                cookies: [
+                    `authorization=${token}; SameSite=None; Secure; Partitioned`,
+                ],
             };
         } else {
             return new ResponseModel(401, "Invalid username or password");
