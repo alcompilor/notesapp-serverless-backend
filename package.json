@@ -1,0 +1,16 @@
+{
+    "scripts": {
+        "format": "prettier . --write"
+    },
+    "dependencies": {
+        "@aws-sdk/client-dynamodb": "^3.588.0",
+        "@aws-sdk/client-eventbridge": "^3.588.0",
+        "@aws-sdk/client-lambda": "^3.588.0",
+        "@aws-sdk/client-ssm": "^3.588.0",
+        "@aws-sdk/lib-dynamodb": "^3.588.0",
+        "jsonwebtoken": "^9.0.2"
+    },
+    "devDependencies": {
+        "prettier": "^3.3.0"
+    }
+}
