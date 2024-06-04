@@ -1,0 +1,165 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: alcompilor
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: notesapp
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: notesapp
+
+provider:
+    name: aws
+    runtime: nodejs20.x
+    region: "eu-north-1"
+    profile: sls
+    stage: dev
+    httpApi:
+        authorizers:
+            customAuthorizer:
+                type: request
+                functionName: authorizerFunc
+                enableSimpleResponses: true
+
+functions:
+    getUser:
+        name: getUser-${sls:stage}
+        handler: functions/user/getUser.handler
+        description: Returns authenticated user
+        events:
+            - httpApi:
+                  path: /users
+                  method: get
+                  authorizer:
+                      name: customAuthorizer
+        role: arn:aws:iam::376670522375:role/LambdaAccessToDynamoDBNotesApp
+
+    postUser:
+        name: postUser-${sls:stage}
+        handler: functions/user/postUser.handler
+        description: Registers a new user in the database
+        events:
+            - httpApi:
+                  path: /users
+                  method: post
+        role: arn:aws:iam::376670522375:role/LambdaAccessToDynamoDBNotesApp
+
+    getNotes:
+        name: getNotes-${sls:stage}
+        handler: functions/notes/getNotes.handler
+        description: Returns a list of notes for a specific user
+        events:
+            - httpApi:
+                  path: /notes
+                  method: get
+                  authorizer:
+                      name: customAuthorizer
+        role: arn:aws:iam::376670522375:role/LambdaAccessToDynamoDBNotesApp
+
+    postNote:
+        name: postNote-${sls:stage}
+        handler: functions/notes/postNote.handler
+        description: Adds a new note to a specific user
+        events:
+            - httpApi:
+                  path: /notes
+                  method: post
+                  authorizer:
+                      name: customAuthorizer
+        role: arn:aws:iam::376670522375:role/LambdaAccessToDynamoDBNotesApp
+
+    deleteNote:
+        name: deleteNote-${sls:stage}
+        handler: functions/notes/deleteNote.handler
+        description: Deletes a note to a spcific user
+        events:
+            - httpApi:
+                  path: /notes
+                  method: delete
+                  authorizer:
+                      name: customAuthorizer
+        role: arn:aws:iam::376670522375:role/LambdaAccessToDynamoDBNotesApp
+
+    authorizerFunc:
+        name: jwtAuthorizer-${sls:stage}
+        description: Custom Authorizer that implements JWT authorization
+        handler: functions/auth/auth.handler
+        role: arn:aws:iam::376670522375:role/LambdaSSMAccessToJWTSecretKeyNotesApp
+
+    login:
+        name: login-${sls:stage}
+        handler: functions/login/login.handler
+        description: Signs in a user if credentials are valid
+        events:
+            - httpApi:
+                  path: /auth
+                  method: post
+        role: arn:aws:iam::376670522375:role/LambdaDynamoDBAndSSMNotesApp
+
+    loggerProducer:
+        name: loggerProducer-${sls:stage}
+        description: Produces http request and sends it to EventBridge
+        handler: functions/logger/loggerProducer.handler
+        role: arn:aws:iam::376670522375:role/LambdaEventBridgePutEvents-notesapp-http-logger
+
+    loggerConsumer:
+        name: loggerConsumer-${sls:stage}
+        description: Consumes http request from EventBridge and logs it in Cloudwatch
+        handler: functions/logger/loggerConsumer.handler
+        events:
+            - eventBridge:
+                  eventBus: !Ref HttpLogsEventBus
+                  pattern:
+                      source:
+                          - "http.reqs"
+                      detail-type:
+                          - "logHttpRequest"
+        role: arn:aws:iam::376670522375:role/LambdaLoggerAccessDynamoDB
+
+resources:
+    Resources:
+        NotesT:
+            Type: "AWS::DynamoDB::Table"
+            Properties:
+                TableName: NotesTable
+                AttributeDefinitions:
+                    - AttributeName: username
+                      AttributeType: S
+                    - AttributeName: title
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: username
+                      KeyType: HASH
+                    - AttributeName: title
+                      KeyType: RANGE
+                BillingMode: "PAY_PER_REQUEST"
+
+        UsersT:
+            Type: "AWS::DynamoDB::Table"
+            Properties:
+                TableName: UsersTable
+                AttributeDefinitions:
+                    - AttributeName: username
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: username
+                      KeyType: HASH
+                BillingMode: "PAY_PER_REQUEST"
+
+        HttpLogsT:
+            Type: "AWS::DynamoDB::Table"
+            Properties:
+                TableName: HttpLogsTable
+                AttributeDefinitions:
+                    - AttributeName: ip
+                      AttributeType: S
+                    - AttributeName: time
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: ip
+                      KeyType: HASH
+                    - AttributeName: time
+                      KeyType: RANGE
+                BillingMode: "PAY_PER_REQUEST"
+
+        HttpLogsEventBus:
+            Type: "AWS::Events::EventBus"
+            Properties:
+                Name: "notesapp-http-logger"
